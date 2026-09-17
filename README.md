@@ -108,6 +108,7 @@ flowchart TB
         subgraph EKS["EKS Cluster · v1.35"]
             ING[Ingress<br/>AWS LB Controller]
             SVC[Service<br/>monitoring:5000]
+            DEP[Deployment<br/>monitoring]
             subgraph PRIV["Private Worker Nodes (2× t3.small SPOT)"]
                 P1[Pod A<br/>Flask+Gunicorn]
                 P2[Pod B<br/>Flask+Gunicorn]
@@ -125,8 +126,9 @@ flowchart TB
 
     U --> ALB --> ING --> SVC
     SVC --> P1 & P2
+    DEP --> P1 & P2
     P1 & P2 -->|/metrics| PROM --> GRAF
-    MS -->|CPU/Mem| HPA -->|replica count| SVC
+    MS -->|CPU/Mem| HPA -->|desired replica count| DEP
     PDB -.->|protects| P1
     PDB -.->|protects| P2
     ECR -->|image pull| P1 & P2
