@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Cluster Monitor · cloud-native-monitoring</title>
+<style>
+  :root {
+    --bg-canvas: #0b0f17;
+    --bg-panel: #121826;
+    --bg-panel-raised: #171f30;
+    --border-subtle: #232b3d;
+    --text-primary: #e7ecf3;
+    --text-muted: #8792a6;
+    --accent: #4d8aff;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --crit: #f87171;
+    --font-ui: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+    --ring-circumference: 339.292;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  a { color: var(--accent); }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .brand svg { flex-shrink: 0; color: var(--accent); }
+  .brand .sub {
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  #clock { font-family: var(--font-mono); color: var(--text-primary); }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 11px 5px 9px;
+    border-radius: 999px;
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--border-subtle);
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .status-pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+  }
+  .status-pill.warn .dot { background: var(--warn); }
+  .status-pill.crit .dot {
+    background: var(--crit);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(248,113,113,0.5); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 5px rgba(248,113,113,0); }
+  }
+
+  /* ---------- alert banner ---------- */
+  #alert-banner {
+    background: rgba(248, 113, 113, 0.1);
+    border-bottom: 1px solid rgba(248, 113, 113, 0.35);
+    color: #ffb4ac;
+    padding: 11px 28px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  #alert-banner[hidden] { display: none; }
+
+  /* ---------- main ---------- */
+  main {
+    flex: 1;
+    padding: 40px 28px 24px;
+    max-width: 920px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .gauges {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+
+  .gauge-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .gauge-wrap {
+    position: relative;
+    width: 168px;
+    height: 168px;
+  }
+
+  .gauge-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+
+  .gauge-track {
+    fill: none;
+    stroke: var(--border-subtle);
+    stroke-width: 12;
+  }
+
+  .gauge-ring {
+    fill: none;
+    stroke-width: 12;
+    stroke-linecap: round;
+    stroke-dasharray: var(--ring-circumference);
+    stroke: var(--ok);
+    transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease;
+  }
+  .gauge-card.warn .gauge-ring { stroke: var(--warn); }
+  .gauge-card.crit .gauge-ring { stroke: var(--crit); }
+
+  .gauge-readout {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gauge-readout .value {
+    font-family: var(--font-mono);
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .gauge-readout .unit {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .gauge-label {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ---------- identity strip ---------- */
+  .identity {
+    margin-top: 28px;
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .identity strong {
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+
+  /* ---------- refresh row ---------- */
+  .refresh-row {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  #refresh-now {
+    background: none;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    border-radius: 7px;
+    padding: 5px 12px;
+    font-size: 13px;
+    font-family: var(--font-ui);
+    cursor: pointer;
+  }
+  #refresh-now:hover { border-color: var(--accent); }
+  #refresh-now:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- about ---------- */
+  details {
+    margin-top: 32px;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 16px;
+  }
+  summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  details p {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    max-width: 62ch;
+    margin: 12px 0 0;
+  }
+  details code {
+    font-family: var(--font-mono);
+    background: var(--bg-panel-raised);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12.5px;
+  }
+
+  footer {
+    padding: 16px 28px 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gauge-ring { transition: none; }
+    .status-pill.crit .dot { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+  {% set cpu_pct = [cpu_metric, 100] | min %}
+  {% set mem_pct = [mem_metric, 100] | min %}
+  {% set cpu_offset = 339.292 * (1 - cpu_pct / 100) %}
+  {% set mem_offset = 339.292 * (1 - mem_pct / 100) %}
+  {% set cpu_state = 'crit' if cpu_metric > 80 else ('warn' if cpu_metric > 60 else 'ok') %}
+  {% set mem_state = 'crit' if mem_metric > 80 else ('warn' if mem_metric > 60 else 'ok') %}
+  {% set overall_state = 'crit' if (cpu_state == 'crit' or mem_state == 'crit') else ('warn' if (cpu_state == 'warn' or mem_state == 'warn') else 'ok') %}
+  {% set overall_text = 'critical' if overall_state == 'crit' else ('elevated' if overall_state == 'warn' else 'healthy') %}
+
+  <header>
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 1.5 2.5 6v10.2c0 4.6 4.1 6.5 9.5 8.3 5.4-1.8 9.5-3.7 9.5-8.3V6L12 1.5zm0 2.2 7.5 3.7v8.8c0 3.3-2.9 4.8-7.5 6.4-4.6-1.6-7.5-3.1-7.5-6.4V7.4L12 3.7z"/>
+        <circle cx="12" cy="12.5" r="3.1"/>
+      </svg>
+      cloud-native-monitoring
+      <span class="sub">cluster monitor</span>
+    </div>
+    <div class="header-right">
+      <span id="clock" aria-live="off"></span>
+      <span class="status-pill {{ overall_state }}" id="status-pill">
+        <span class="dot"></span>
+        <span id="status-text">{{ overall_text }}</span>
+      </span>
+    </div>
+  </header>
+
+  <div id="alert-banner" {% if not message %}hidden{% endif %}>⚠ {{ message }}</div>
+
+  <main>
+    <div class="gauges">
+      <div class="gauge-card {{ cpu_state }}" id="cpu-card">
+        <div class="gauge-wrap">
+          <svg viewBox="0 0 130 130">
+            <circle class="gauge-track" cx="65" cy="65" r="54"></circle>
+            <circle class="gauge-ring" id="cpu-ring" cx="65" cy="65" r="54"
+                    style="stroke-dashoffset: {{ '%.2f' % cpu_offset }};"></circle>
+          </svg>
+          <div class="gauge-readout">
+            <span class="value" id="cpu-value">{{ '%.1f' % cpu_metric }}</span>
+            <span class="unit">% cpu</span>
+          </div>
+        </div>
+        <div class="gauge-label">host CPU usage</div>
+      </div>
+
+      <div class="gauge-card {{ mem_state }}" id="mem-card">
+        <div class="gauge-wrap">
+          <svg viewBox="0 0 130 130">
+            <circle class="gauge-track" cx="65" cy="65" r="54"></circle>
+            <circle class="gauge-ring" id="mem-ring" cx="65" cy="65" r="54"
+                    style="stroke-dashoffset: {{ '%.2f' % mem_offset }};"></circle>
+          </svg>
+          <div class="gauge-readout">
+            <span class="value" id="mem-value">{{ '%.1f' % mem_metric }}</span>
+            <span class="unit">% mem</span>
+          </div>
+        </div>
+        <div class="gauge-label">host memory usage</div>
+      </div>
+    </div>
+
+    <div class="identity">
+      <span>pod &nbsp;<strong id="pod-name">{{ pod_name | default('not wired up yet') }}</strong></span>
+    </div>
+
+    <div class="refresh-row">
+      <button id="refresh-now" type="button">Refresh now</button>
+      <span>auto-refresh in <span id="countdown">5</span>s</span>
+    </div>
+
+    <details>
+      <summary>How this dashboard works</summary>
+      <p>
+        <code>cpu_metric</code> and <code>mem_metric</code> come from <code>psutil</code>
+        inside this pod's container — that's node-level usage, not aggregate cluster
+        usage. The banner above fires when Flask's <code>app.py</code> sets a warning
+        past 80%. If <code>app.py</code> also passes <code>pod_name</code>
+        (try <code>socket.gethostname()</code>), you'll see it change here every time
+        a different replica answers your request behind the Kubernetes Service — a
+        quick way to watch load-balancing across pods in real time.
+      </p>
+      <p>
+        This page first tries <code>fetch('/metrics')</code> for smooth live updates,
+        and falls back to a full page reload every 5s if that route doesn't exist yet.
+        Add a small JSON route returning the same three fields to upgrade it.
+      </p>
+    </details>
+  </main>
+
+  <footer>psutil metrics · refreshed client-side · no data leaves this pod</footer>
+
+<script>
+  const RING_CIRCUMFERENCE = 339.292;
+  const REFRESH_MS = 5000;
+
+  function classify(v) {
+    return v > 80 ? 'crit' : v > 60 ? 'warn' : 'ok';
+  }
+
+  function setState(el, state) {
+    el.classList.remove('ok', 'warn', 'crit');
+    el.classList.add(state);
+  }
+
+  function render(cpu, mem, message, podName) {
+    const cpuPct = Math.min(cpu, 100);
+    const memPct = Math.min(mem, 100);
+
+    document.getElementById('cpu-value').textContent = cpu.toFixed(1);
+    document.getElementById('mem-value').textContent = mem.toFixed(1);
+    document.getElementById('cpu-ring').style.strokeDashoffset = RING_CIRCUMFERENCE * (1 - cpuPct / 100);
+    document.getElementById('mem-ring').style.strokeDashoffset = RING_CIRCUMFERENCE * (1 - memPct / 100);
+
+    const cpuState = classify(cpu);
+    const memState = classify(mem);
+    setState(document.getElementById('cpu-card'), cpuState);
+    setState(document.getElementById('mem-card'), memState);
+
+    const overall = (cpuState === 'crit' || memState === 'crit') ? 'crit'
+                  : (cpuState === 'warn' || memState === 'warn') ? 'warn' : 'ok';
+    setState(document.getElementById('status-pill'), overall);
+    document.getElementById('status-text').textContent =
+      overall === 'crit' ? 'critical' : overall === 'warn' ? 'elevated' : 'healthy';
+
+    const banner = document.getElementById('alert-banner');
+    if (message) {
+      banner.textContent = '⚠ ' + message;
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
+
+    if (podName) document.getElementById('pod-name').textContent = podName;
+  }
+
+  function tickClock() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  let usesLiveEndpoint = null;
+
+  async function poll() {
+    try {
+      const res = await fetch('/metrics', { cache: 'no-store' });
+      if (!res.ok) throw new Error('no /metrics route');
+      const data = await res.json();
+      usesLiveEndpoint = true;
+      render(data.cpu_metric, data.mem_metric, data.message, data.pod_name);
+    } catch (err) {
+      usesLiveEndpoint = false;
+    }
+  }
+
+  function scheduleNext() {
+    let remaining = REFRESH_MS / 1000;
+    document.getElementById('countdown').textContent = remaining;
+    const timer = setInterval(() => {
+      remaining -= 1;
+      document.getElementById('countdown').textContent = Math.max(remaining, 0);
+      if (remaining <= 0) {
+        clearInterval(timer);
+        if (usesLiveEndpoint) {
+          poll().then(scheduleNext);
+        } else {
+          location.reload();
+        }
+      }
+    }, 1000);
+  }
+
+  document.getElementById('refresh-now').addEventListener('click', () => {
+    if (usesLiveEndpoint) poll();
+    else location.reload();
+  });
+
+  poll().then(scheduleNext);
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: monitoring
+  namespace: monitoring
+  labels:
+    app: monitoring
+spec:
+  containers:
+    - name: monitoring
+      image: cloud-native-monitoring:v4
+      ports:
+        - containerPort: 5000

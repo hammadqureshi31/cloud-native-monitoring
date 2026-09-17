@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rbac-test
+  namespace: monitoring
+spec:
+  serviceAccount: monitoring-sa
+
+  containers:
+    - name: rbac-test
+      image: python:3.11-slim
+      command:
+        - sleep
+        - "3600"

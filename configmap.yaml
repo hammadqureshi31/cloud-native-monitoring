@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: 
+  name: monitoring-config
+  namespace: monitoring
+data:
+  PORT: "5001"
+  FLASK_DEBUG: "true"
+  MAX_CONTENT_LENGTH: "1048576"

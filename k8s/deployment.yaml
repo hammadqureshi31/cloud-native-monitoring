@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring
+  namespace: monitoring
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: monitoring
+
+  template:
+    metadata:
+      labels:
+        app: monitoring
+
+    spec:
+      securityContext: 
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+
+      serviceAccountName: monitoring-sa
+      volumes:
+        - name: monitoring-config
+          configMap:
+            name: monitoring-config
+
+        - name: monitoring-secret
+          secret:
+            secretName: monitoring-secret
+
+        - name: tmp
+          emptyDir: {}
+
+        - name: gunicorn
+          emptyDir: {}
+
+      containers:
+        - name: monitoring
+          image: 574921529429.dkr.ecr.eu-north-1.amazonaws.com/my_monitoring_app_image:v9
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+
+          envFrom:
+            - configMapRef:
+                name: monitoring-config
+            - secretRef:
+                name: monitoring-secret
+
+          volumeMounts:
+            - name: monitoring-config
+              mountPath: /etc/monitoring
+
+            - name: monitoring-secret
+              mountPath: /etc/monitoring-secret
+              readOnly: true
+
+            - name: tmp
+              mountPath: /tmp
+
+            - name: gunicorn
+              mountPath: /home/appuser/.gunicorn
+
+          ports:
+            - containerPort: 5000
+          
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            failureThreshold: 12
+            periodSeconds: 5
+
+

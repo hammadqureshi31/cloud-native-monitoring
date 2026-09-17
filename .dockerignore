@@ -1,0 +1,95 @@
+# Git
+
+.git/
+.gitignore
+.github/
+
+# Terraform / Infrastructure
+
+terraform/
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Kubernetes manifests
+
+k8s/
+
+# Environment / secrets
+
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache / bytecode
+
+**pycache**/
+*.py[cod]
+*.pyo
+
+# Tests / development artifacts
+
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / editor files
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation / project metadata
+
+*.md
+Makefile
+project.yaml
+
+# Docker-related local files
+
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+# Python packaging artifacts
+
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Logs
+
+*.log
+logs/
+
+# Temporary files
+
+tmp/
+temp/
+*.tmp
+*.bak
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
+# Local AWS CLI state
+
+.aws/
+
